@@ -14,12 +14,19 @@ use ratatui::{
 
 #[derive(Debug, Default)]
 struct AppState {
-    tech_scores: Vec<Score>,
-    pres_scores: Vec<Score>,
+    technique_scores: [Score; 6],
+    presentation_scores: [Score; 4],
+    current_score_index: u8,
+
+    competitor_name: String,
+
+    technique_state: ListState,
+    presentation_state: ListState,
 
     deductions: Vec<Deduction>,
     deductions_state: ListState,
 
+    is_setup: bool,
     is_add_deduction: bool,
     is_add_deduction_hard: bool,
     input_value: String,
@@ -33,7 +40,9 @@ struct Deduction {
 
 #[derive(Debug, Default)]
 struct Score {
+    tag: String,
     value: f32,
+    scored: bool,
 }
 
 enum FormAction {
@@ -44,23 +53,67 @@ enum FormAction {
 
 fn main() -> Result<()> {
     let mut state = AppState::default();
+    state.is_setup = true;
     state.is_add_deduction = false;
+    state.current_score_index = 0;
 
-    // TEST VALUES FOR DEDUCTIONS LIST
-    state.deductions.push(Deduction {
-        value: 0.3,
-        desc: String::from("missed mandatory dwit kubi"),
-    });
+    // DEFAULTS FOR SCORING FREESTYLE
+    state.technique_scores = [
+        Score {
+            tag: String::from("T1"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("T2"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("T3"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("T4"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("T5"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("T6"),
+            value: 0.0,
+            scored: false
+        }
+    ];
+    state.presentation_scores = [
+        Score {
+            tag: String::from("P1"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("P2"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("P3"),
+            value: 0.0,
+            scored: false
+        },
+        Score {
+            tag: String::from("P4"),
+            value: 0.0,
+            scored: false
+        }
+    ];
 
-    state.deductions.push(Deduction {
-        value: 0.3,
-        desc: String::from("missed mandatory boom seogi"),
-    });
-    state.deductions.push(Deduction {
-        value: 0.1,
-        desc: String::from("overtime"),
-    });
-
+    state.technique_state.select_next();
     color_eyre::install()?;
 
     let terminal = ratatui::init();
@@ -102,7 +155,12 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
                         app_state.input_value.clear();
                     }
                 }
-            } else {
+            } else if app_state.is_setup {
+                if handle_setup(key, app_state) {
+                    break;
+                }
+            }
+            else {
                 if handle_key(key, app_state) {
                     break;
                 }
@@ -111,6 +169,31 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn handle_setup(key: KeyEvent, app_state: &mut AppState) -> bool {
+    match key.code {
+        event::KeyCode::Char(c) => {
+            app_state.competitor_name.push(c);
+        }
+
+        event::KeyCode::Backspace => {
+            app_state.competitor_name.pop();
+        }
+
+        event::KeyCode::Enter => {
+            app_state.is_setup = false;
+            return false;
+        }
+
+        event::KeyCode::Esc => {
+            return true;
+        }
+
+        _ => {}
+    }
+
+    return false;
 }
 
 fn handle_add_deduction(key: KeyEvent, app_state: &mut AppState) -> FormAction {
@@ -134,6 +217,44 @@ fn handle_add_deduction(key: KeyEvent, app_state: &mut AppState) -> FormAction {
     }
 
     FormAction::None
+}
+
+fn register_score(app_state: &mut AppState, score: f32) {
+
+    if app_state.current_score_index < 6 {
+        let index = app_state.current_score_index as usize;
+        app_state.technique_state.select(Some(index));
+        
+        if let Some(score_element) = app_state.technique_scores.get_mut(index) {
+            score_element.value = score;
+            score_element.scored = true;
+        }
+
+        if app_state.current_score_index < 5 {
+            app_state.technique_state.select_next();
+        }
+        else {
+            app_state.technique_state.select(None);
+            app_state.presentation_state.select_next();
+        }
+    }
+    else if app_state.current_score_index < 10 {
+        let index = (app_state.current_score_index - 6) as usize;
+        app_state.presentation_state.select(Some(index));
+        
+        if let Some(score_element) = app_state.presentation_scores.get_mut(index) {
+            score_element.value = score;
+            score_element.scored = true;
+        }
+
+        if app_state.current_score_index < 9 {
+            app_state.presentation_state.select_next();
+        }
+    }
+
+    if app_state.current_score_index < 9 {
+        app_state.current_score_index += 1;
+    }
 }
 
 fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
@@ -163,6 +284,17 @@ fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
                     app_state.deductions.remove(index);
                 }
             }
+            '|' => { register_score(app_state, 0.0); }
+            '1' => { register_score(app_state, 0.1); }
+            '2' => { register_score(app_state, 0.2); }
+            '3' => { register_score(app_state, 0.3); }
+            '4' => { register_score(app_state, 0.4); }
+            '5' => { register_score(app_state, 0.5); }
+            '6' => { register_score(app_state, 0.6); }
+            '7' => { register_score(app_state, 0.7); }
+            '8' => { register_score(app_state, 0.8); }
+            '9' => { register_score(app_state, 0.9); }
+            '0' => { register_score(app_state, 1.0); }
 
             _ => {}
         },
@@ -172,21 +304,22 @@ fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
     return false;
 }
 
-fn score_bar(score: f32, color: Color) -> Line<'static> {
+fn score_bar(score: &Score, color: Color) -> Line<'static> {
 
-    // format: [X][1][2][3][4][5][6][7][8][9][T]
+    // format: T1 -> [X][1][2][3][4][5][6][7][8][9][T]
     let ret = Line::from(vec![
-        Span::styled("[X]", if (score == 0.0) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[1]", if (score == 0.1) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[2]", if (score == 0.2) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[3]", if (score == 0.3) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[4]", if (score == 0.4) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[5]", if (score == 0.5) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[6]", if (score == 0.6) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[7]", if (score == 0.7) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[8]", if (score == 0.8) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[9]", if (score == 0.9) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
-        Span::styled("[T]", if (score == 1.0) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() })
+        Span::styled(format!(" {} -> ", score.tag.clone()), Style::default().fg(color).bold()),
+        Span::styled("[:X:]", if score.value == 0.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:1:]", if score.value == 0.1 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:2:]", if score.value == 0.2 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:3:]", if score.value == 0.3 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:4:]", if score.value == 0.4 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:5:]", if score.value == 0.5 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:6:]", if score.value == 0.6 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:7:]", if score.value == 0.7 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:8:]", if score.value == 0.8 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:9:]", if score.value == 0.9 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled("[:T:]", if score.value == 1.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) })
     ]);
 
     return ret
@@ -195,7 +328,7 @@ fn score_bar(score: f32, color: Color) -> Line<'static> {
 fn render(frame: &mut Frame, app_state: &mut AppState) {
     let main_panel = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
+        .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
         .split(frame.area());
 
     let left_panel = Layout::default()
@@ -218,10 +351,6 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
         .title_top(Line::from(" Adding new deduction... ").bold())
         .fg(Color::LightRed);
 
-    let [deduction_field_area] = Layout::vertical([Constraint::Fill(1)])
-        .margin(1)
-        .areas(left_panel[0]);
-
     let scoring_panel = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -233,8 +362,8 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
     let base_scoring_panel = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
+            Constraint::Percentage(60),
+            Constraint::Percentage(40),
         ])
         .split(scoring_panel[0]);
 
@@ -243,10 +372,18 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
         .title_top(Line::from("[[ TECHNIQUE ]]").centered().bold())
         .fg(Color::Green);
 
+    let [technique_area] = Layout::vertical([Constraint::Fill(1)])
+        .margin(1)
+        .areas(base_scoring_panel[0]);
+
     let presentation_border = Block::bordered()
         .border_type(Double)
         .title_top(Line::from("[[ PRESENTATION ]]").centered().bold())
         .fg(Color::Blue);
+
+    let [presentation_area] = Layout::vertical([Constraint::Fill(1)])
+        .margin(1)
+        .areas(base_scoring_panel[1]);
 
     let deduction_border = Block::bordered()
         .border_type(Double)
@@ -256,24 +393,6 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
     let [deduction_area] = Layout::vertical([Constraint::Fill(1)])
         .margin(1)
         .areas(scoring_panel[1]);
-
-    // let competitor_area = Paragraph::default()
-    //     .block(competitor_border);
-
-    /*
-    let [border_area] = Layout::vertical([Constraint::Fill(1)])
-        .margin(1)
-        .areas(frame.area());
-
-
-
-    Block::bordered()
-        .border_type(Thick)
-        .fg(Color::Red)
-        .title_top(Line::from("[ Deductions ]").centered().bold())
-        .render(border_area, frame.buffer_mut());
-    */
-
 
     let deduction_list = List::new(
         app_state
@@ -297,7 +416,25 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
         frame.render_widget(deduction_paragraph, left_panel[0]);
     }
     else {
-        frame.render_widget(competitor_border, left_panel[0]);
+        let competitor_paragraph = Paragraph::new(format!(" {}", app_state.competitor_name.as_str()))
+            .block(competitor_border); // <-- This puts the text INSIDE the box automatically
+
+        frame.render_widget(competitor_paragraph, left_panel[0]);
     }
+
+    let technique_scores = List::new(
+        app_state.technique_scores
+            .iter()
+            .map(|x| ListItem::from(score_bar(x, Color::Green)))
+    ).highlight_style(Style::default().bg(Color::DarkGray));
+
+    let presentation_scores = List::new(
+        app_state.presentation_scores
+            .iter()
+            .map(|x| ListItem::from(score_bar(x, Color::Blue)))
+    ).highlight_style(Style::default().bg(Color::DarkGray));
+
+    frame.render_stateful_widget(technique_scores, technique_area, &mut app_state.technique_state);
+    frame.render_stateful_widget(presentation_scores, presentation_area, &mut app_state.presentation_state);
 
 }
