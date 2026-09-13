@@ -2,13 +2,12 @@ use color_eyre::eyre::{Ok, Result};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::{
         event::{self, Event, KeyEvent},
-        terminal,
     }, layout::{
         Constraint,
-        Direction::{self, Horizontal},
+        Direction::{self},
         Layout,
-    }, style::{Color, Style, Stylize}, symbols::border::{DOUBLE, THICK}, text::{Line, Span}, widgets::{
-        Block, BorderType::{self, Double, Thick}, List, ListItem, ListState, Paragraph, Widget,
+    }, style::{Color, Style, Stylize}, text::{Line, Span}, widgets::{
+        Block, BorderType::{Double, Thick}, List, ListItem, ListState, Paragraph,
     },
 };
 
