@@ -1,8 +1,15 @@
 use color_eyre::eyre::{Ok, Result};
 use ratatui::{
     DefaultTerminal, Frame, crossterm::{
-        event::{self, Event, KeyEvent}, terminal,
-    }, layout::{Constraint, Layout}, style::{Color, Style, Stylize}, widgets::{Block, BorderType::{Double, Thick}, List, ListItem, ListState, Paragraph, Widget},
+        event::{self, Event, KeyEvent},
+        terminal,
+    }, layout::{
+        Constraint,
+        Direction::{self, Horizontal},
+        Layout,
+    }, style::{Color, Style, Stylize}, symbols::border::{DOUBLE, THICK}, text::{Line, Span}, widgets::{
+        Block, BorderType::{self, Double, Thick}, List, ListItem, ListState, Paragraph, Widget,
+    },
 };
 
 #[derive(Debug, Default)]
@@ -32,7 +39,7 @@ struct Score {
 enum FormAction {
     None,
     Submit,
-    Escape
+    Escape,
 }
 
 fn main() -> Result<()> {
@@ -70,10 +77,9 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
 
         // Input handling
         if let Event::Key(key) = event::read()? {
-            
             if app_state.is_add_deduction {
                 match handle_add_deduction(key, app_state) {
-                    FormAction::None => {},
+                    FormAction::None => {}
                     FormAction::Submit => {
                         app_state.is_add_deduction = false;
 
@@ -82,8 +88,7 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
                                 value: 0.1,
                                 desc: app_state.input_value.clone(),
                             })
-                        }
-                        else {
+                        } else {
                             app_state.deductions.push(Deduction {
                                 value: 0.3,
                                 desc: app_state.input_value.clone(),
@@ -91,14 +96,13 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
                         }
 
                         app_state.input_value.clear();
-                    },
+                    }
                     FormAction::Escape => {
                         app_state.is_add_deduction = false;
                         app_state.input_value.clear();
-                    },
+                    }
                 }
-            } 
-            else {    
+            } else {
                 if handle_key(key, app_state) {
                     break;
                 }
@@ -110,9 +114,7 @@ fn run(mut terminal: DefaultTerminal, app_state: &mut AppState) -> Result<()> {
 }
 
 fn handle_add_deduction(key: KeyEvent, app_state: &mut AppState) -> FormAction {
-
     match key.code {
-
         event::KeyCode::Char(c) => {
             app_state.input_value.push(c);
         }
@@ -130,7 +132,7 @@ fn handle_add_deduction(key: KeyEvent, app_state: &mut AppState) -> FormAction {
         }
         _ => {}
     }
-    
+
     FormAction::None
 }
 
@@ -170,19 +172,108 @@ fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
     return false;
 }
 
+fn score_bar(score: f32, color: Color) -> Line<'static> {
+
+    // format: [X][1][2][3][4][5][6][7][8][9][T]
+    let ret = Line::from(vec![
+        Span::styled("[X]", if (score == 0.0) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[1]", if (score == 0.1) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[2]", if (score == 0.2) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[3]", if (score == 0.3) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[4]", if (score == 0.4) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[5]", if (score == 0.5) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[6]", if (score == 0.6) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[7]", if (score == 0.7) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[8]", if (score == 0.8) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[9]", if (score == 0.9) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() }),
+        Span::styled("[T]", if (score == 1.0) { Style::default().fg(color) } else { Style::default().fg(Color::Gray).bold() })
+    ]);
+
+    return ret
+}
+
 fn render(frame: &mut Frame, app_state: &mut AppState) {
+    let main_panel = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
+        .split(frame.area());
+
+    let left_panel = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Fill(1)])
+        .split(main_panel[0]);
+
+    let rank_panel_border = Block::bordered()
+        .border_type(Double)
+        .title_top(Line::from("[[ RANKING ]]").centered().bold())
+        .fg(Color::Yellow);
+
+    let competitor_border = Block::bordered()
+        .border_type(Double)
+        .title_top(Line::from(" Contestant: ").bold())
+        .fg(Color::White);
+
+    let deduction_field_border = Block::bordered()
+        .border_type(Thick)
+        .title_top(Line::from(" Adding new deduction... ").bold())
+        .fg(Color::LightRed);
+
+    let [deduction_field_area] = Layout::vertical([Constraint::Fill(1)])
+        .margin(1)
+        .areas(left_panel[0]);
+
+    let scoring_panel = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(left_panel[1]);
+
+    let base_scoring_panel = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(scoring_panel[0]);
+
+    let technique_border = Block::bordered()
+        .border_type(Double)
+        .title_top(Line::from("[[ TECHNIQUE ]]").centered().bold())
+        .fg(Color::Green);
+
+    let presentation_border = Block::bordered()
+        .border_type(Double)
+        .title_top(Line::from("[[ PRESENTATION ]]").centered().bold())
+        .fg(Color::Blue);
+
+    let deduction_border = Block::bordered()
+        .border_type(Double)
+        .title_top(Line::from("[[ DEDUCTIONS ]]").centered().bold())
+        .fg(Color::Red);
+
+    let [deduction_area] = Layout::vertical([Constraint::Fill(1)])
+        .margin(1)
+        .areas(scoring_panel[1]);
+
+    // let competitor_area = Paragraph::default()
+    //     .block(competitor_border);
+
+    /*
     let [border_area] = Layout::vertical([Constraint::Fill(1)])
         .margin(1)
         .areas(frame.area());
 
-    let [inner_area] = Layout::vertical([Constraint::Fill(1)])
-        .margin(1)
-        .areas(border_area);
+
 
     Block::bordered()
         .border_type(Thick)
         .fg(Color::Red)
+        .title_top(Line::from("[ Deductions ]").centered().bold())
         .render(border_area, frame.buffer_mut());
+    */
+
 
     let deduction_list = List::new(
         app_state
@@ -192,12 +283,21 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
     )
     .highlight_style(Style::default().fg(Color::Black).bg(Color::Red).bold());
 
-    frame.render_stateful_widget(deduction_list, inner_area, &mut app_state.deductions_state);
+    frame.render_widget(rank_panel_border, main_panel[1]);
+    frame.render_widget(technique_border, base_scoring_panel[0]);
+    frame.render_widget(presentation_border, base_scoring_panel[1]);
+    frame.render_widget(deduction_border, scoring_panel[1]);
+
+    frame.render_stateful_widget(deduction_list, deduction_area, &mut app_state.deductions_state);
 
     if app_state.is_add_deduction {
-        Paragraph::new(
-            app_state.
-            input_value.as_str()
-        ).render(frame.area(), frame.buffer_mut());
+        let deduction_paragraph = Paragraph::new(format!(" {}", app_state.input_value.as_str()))
+            .block(deduction_field_border); // <-- This puts the text INSIDE the box automatically
+
+        frame.render_widget(deduction_paragraph, left_panel[0]);
     }
+    else {
+        frame.render_widget(competitor_border, left_panel[0]);
+    }
+
 }
