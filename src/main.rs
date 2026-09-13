@@ -1,13 +1,11 @@
 use color_eyre::eyre::{Ok, Result};
 use ratatui::{
-    DefaultTerminal, Frame, crossterm::{
-        event::{self, Event, KeyEvent},
-    }, layout::{
+    DefaultTerminal, Frame, crossterm::event::{self, Event, KeyEvent}, layout::{
         Constraint,
         Direction::{self},
         Layout,
     }, style::{Color, Style, Stylize}, text::{Line, Span}, widgets::{
-        Block, BorderType::{Double, Thick}, List, ListItem, ListState, Paragraph,
+        Block, BorderType::{Double, Thick}, List, ListItem, ListState, Padding, Paragraph, Wrap,
     },
 };
 
@@ -308,27 +306,45 @@ fn score_bar(score: &Score, color: Color) -> Line<'static> {
     // format: T1 -> [X][1][2][3][4][5][6][7][8][9][T]
     let ret = Line::from(vec![
         Span::styled(format!(" {} -> ", score.tag.clone()), Style::default().fg(color).bold()),
-        Span::styled("[:X:]", if score.value == 0.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:1:]", if score.value == 0.1 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:2:]", if score.value == 0.2 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:3:]", if score.value == 0.3 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:4:]", if score.value == 0.4 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:5:]", if score.value == 0.5 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:6:]", if score.value == 0.6 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:7:]", if score.value == 0.7 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:8:]", if score.value == 0.8 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:9:]", if score.value == 0.9 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
-        Span::styled("[:T:]", if score.value == 1.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) })
+        Span::styled("[X]", if score.value == 0.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[1]", if score.value == 0.1 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[2]", if score.value == 0.2 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[3]", if score.value == 0.3 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[4]", if score.value == 0.4 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[5]", if score.value == 0.5 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[6]", if score.value == 0.6 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[7]", if score.value == 0.7 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[8]", if score.value == 0.8 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[9]", if score.value == 0.9 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) }),
+        Span::styled(":", Style::default().fg(Color::Gray)),
+        Span::styled("[T]", if score.value == 1.0 && score.scored { Style::default().fg(color).bold() } else { Style::default().fg(Color::Gray) })
     ]);
 
     return ret
 }
 
 fn render(frame: &mut Frame, app_state: &mut AppState) {
+
+    let screen = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(24), Constraint::Length(3)])
+        .spacing(2)
+        .split(frame.area());
+
     let main_panel = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
-        .split(frame.area());
+        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
+        .spacing(1)
+        .split(screen[0]);
 
     let left_panel = Layout::default()
         .direction(Direction::Vertical)
@@ -353,9 +369,10 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
     let scoring_panel = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(50),
-            Constraint::Percentage(50),
+            Constraint::Percentage(55),
+            Constraint::Percentage(45),
         ])
+        .spacing(1)
         .split(left_panel[1]);
 
     let base_scoring_panel = Layout::default()
@@ -435,5 +452,20 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
 
     frame.render_stateful_widget(technique_scores, technique_area, &mut app_state.technique_state);
     frame.render_stateful_widget(presentation_scores, presentation_area, &mut app_state.presentation_state);
+
+    let tooltips = Paragraph::new(Line::from(vec![
+        Span::styled("<Esc>\u{00A0}", Style::default().blue().bold()), Span::styled("Exit        ", Style::default().bold()),
+        Span::styled("<Q/E>\u{00A0}", Style::default().blue().bold()), Span::styled("Prev/Next\u{00A0}score\u{00A0}field        ", Style::default().bold()),
+        Span::styled("<1-9>\u{00A0}", Style::default().blue().bold()), Span::styled("Set score\u{00A0}field        ", Style::default().bold()),
+        Span::styled("<Space>\u{00A0}", Style::default().blue().bold()), Span::styled("Submit\u{00A0}scores        \n", Style::default().bold()),
+        Span::styled("<+>\u{00A0}", Style::default().blue().bold()), Span::styled("Add\u{00A0}0.1\u{00A0}deduction        ", Style::default().bold()),
+        Span::styled("<}>\u{00A0}", Style::default().blue().bold()), Span::styled("Add\u{00A0}0.3\u{00A0}deduction        ", Style::default().bold()),
+        Span::styled("<ñ/{>\u{00A0}", Style::default().blue().bold()), Span::styled("Prev/Next\u{00A0}deduction        ", Style::default().bold()),
+        Span::styled("<->\u{00A0}", Style::default().blue().bold()), Span::styled("Remove\u{00A0}deduction        ", Style::default().bold()),
+    ]).centered())
+        .wrap(Wrap {trim: true})
+        .block(Block::default().padding(Padding::horizontal(8)));
+
+    frame.render_widget(tooltips, screen[1]);
 
 }
