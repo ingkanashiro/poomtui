@@ -27,6 +27,8 @@ struct AppState {
     is_add_deduction: bool,
     is_add_deduction_hard: bool,
     input_value: String,
+
+    final_score: String,
 }
 
 #[derive(Debug, Default)]
@@ -254,11 +256,26 @@ fn register_score(app_state: &mut AppState, score: f32) {
     }
 }
 
+fn get_score(app_state: &mut AppState) -> f32 {
+
+    let mut technique = 0.0;
+    let mut presentation = 0.0;
+    let mut deductions = 0.0;
+
+    app_state.technique_scores.iter().for_each(|x| technique += x.value);
+    app_state.presentation_scores.iter().for_each(|x| presentation += x.value);
+    app_state.deductions.iter().for_each(|x| deductions += x.value);
+
+    let final_score = technique + presentation - deductions;
+    return final_score;
+}
+
 fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
     match key.code {
         event::KeyCode::Esc => {
             return true;
         }
+
         event::KeyCode::Char(char) => match char {
             'ñ' => {
                 app_state.deductions_state.select_previous();
@@ -292,6 +309,12 @@ fn handle_key(key: KeyEvent, app_state: &mut AppState) -> bool {
             '8' => { register_score(app_state, 0.8); }
             '9' => { register_score(app_state, 0.9); }
             '0' => { register_score(app_state, 1.0); }
+
+            ' ' => {
+                let final_score = get_score(app_state);
+
+                app_state.final_score = format!("{:.2}", final_score);
+            }
 
             _ => {}
         },
@@ -355,6 +378,16 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
         .border_type(Double)
         .title_top(Line::from("[[ RANKING ]]").centered().bold())
         .fg(Color::Yellow);
+
+    let competitor_panel = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Fill(1), Constraint::Length(11)])
+        .split(left_panel[0]);
+
+    let total_score_border = Block::bordered()
+        .border_type(Thick)
+        .title_top(Line::from(" SCORE ").bold().centered())
+        .fg(Color::Magenta);
 
     let competitor_border = Block::bordered()
         .border_type(Double)
@@ -435,7 +468,13 @@ fn render(frame: &mut Frame, app_state: &mut AppState) {
         let competitor_paragraph = Paragraph::new(format!(" {}", app_state.competitor_name.as_str()))
             .block(competitor_border); // <-- This puts the text INSIDE the box automatically
 
-        frame.render_widget(competitor_paragraph, left_panel[0]);
+        let competitor_total_score = Paragraph::new(format!(" {}", app_state.final_score))
+            .centered()
+            .bold()
+            .block(total_score_border);
+
+        frame.render_widget(competitor_paragraph, competitor_panel[0]);
+        frame.render_widget(competitor_total_score, competitor_panel[1]);
     }
 
     let technique_scores = List::new(
